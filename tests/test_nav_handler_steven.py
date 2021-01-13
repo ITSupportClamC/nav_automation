@@ -19,7 +19,11 @@ class TestNavHandlerSteven(unittest2.TestCase):
 		data = getSTBFNavDataFromFile(file)
 		sortedData = sorted(data, key=lambda t: t[1])
 		self.assertEqual(2, len(sortedData))
-		self.assertEqual( ('2020-12-30', 'Class B', 'USD', 400000, 9.9961)
-						, sortedData[0])
-		self.assertEqual( ('2020-12-30', 'Class I', 'USD', 4500000, 9.9959)
-						, sortedData[0])
+		self.assertEqual(
+			('2020-12-30', 'Class B', 'USD', 400000, 3998441.60, 9.9961)
+		  , sortedData[0]
+		)
+		self.assertEqual(
+			('2020-12-30', 'Class I', 'USD', 4500000, 44981729.87, 9.9959)
+		  , sortedData[0]
+		)

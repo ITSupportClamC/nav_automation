@@ -9,7 +9,12 @@ from os.path import abspath, dirname
 def getSTBFNavDataFromFile(file):
 	"""
 	[String] file (daily NAV file for Short Term Bond Fund)
-		=> [Iterable] (date, class, currency, number of unit, nav)
+		=> [Iterable] ( date (yyyy-mm-dd)
+					  , class
+					  , currency
+					  , number of unit
+					  , total nav of the class
+					  , nav per unit)
 	"""
 	# FIXME: to be implemented
 	return []
