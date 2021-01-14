@@ -43,6 +43,104 @@ def updateWebSite(mode, timeOut, fundName, navData):
 
 
 
+def createBloombergExcelFile(templateFile, outputDir, fundName, data):
+	"""
+	[String] template file,
+	[String] output directory,
+	[String] fund name
+	[Iterable] ( date (yyyy-mm-dd)
+			   , class
+			   , currency
+			   , number of unit
+			   , total nav of the class
+			   , nav per unit)
+
+	=> [String] output file
+
+	Assume: the list of classes in data all belong to the same fund.
+
+	Side effect: create an excel file in the output directory,
+	with the data populated. The template file should be kept
+	unchanged.
+	"""
+	# FIXME: add implementation
+	return ''
+
+
+
+def createThomsonExcelFile(templateFile, outputDir, fundName, data):
+	"""
+	[String] template file,
+	[String] output directory,
+	[String] fund name
+	[Iterable] ( date (yyyy-mm-dd)
+			   , class
+			   , currency
+			   , number of unit
+			   , total nav of the class
+			   , nav per unit)
+
+	=> [String] output file
+
+	Assume: the list of classes in data all belong to the same fund.
+
+	Side effect: create an excel file in the output directory,
+	with the data populated. The template file should be kept
+	unchanged.
+	"""
+	# FIXME: add implementation
+	return ''
+
+
+
+def getBloombergCode(fundName, className, currency):
+	"""
+	[String] fund name,
+	[String] class name,
+	[String] currency
+		=> [String] Bloomberg code
+	"""
+	f_map = \
+	{ ('stbf', 'Class B', 'USD'): 'CLSTFBU HK Equity'
+	, ('stbf', 'Class I', 'USD'): 'CLSTFIU HK Equity'
+	}
+	return f_map[(fundName, className, currency)]
+
+
+
+def getBloombergFundname(fundName):
+	"""
+	"""
+	f_map = {'stbf': 'CHINA LIFE FR ST BOND'}
+	return f_map[fundName]
+
+
+
+def getThomsonReutersFundname(fundName):
+	"""
+	[String] fund name,
+	[String] class name
+		=> [Tuple] ISIN code, Thomson Reuters fund name
+	"""
+	f_map = {'stbf': 'China Life Franklin Global-Short Term Bond'}
+	return f_map[fundName]
+
+
+
+def getISINCode(fundName, className):
+	"""
+	[String] fund name,
+	[String] class name
+		=> [String] ISIN code
+	"""
+	f_map = \
+	{ ('stbf', 'Class B'): 'HK0000664455'
+	, ('stbf', 'Class I'): 'HK0000664489'
+	}
+	return f_map[(fundName, className)]
+
+
+
 """
 	returns the current directory
 
@@ -50,6 +148,3 @@ def updateWebSite(mode, timeOut, fundName, navData):
 """
 getCurrentDirectory = lambda : \
 	dirname(abspath(__file__))
-
-
-
