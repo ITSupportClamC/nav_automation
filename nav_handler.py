@@ -2,8 +2,22 @@
 #
 # Functions needed to calculate IMA yield
 # 
+import ast
+import hashlib
+import json
+import logging
+import math
+import os
+import sys
+import time
+from datetime import datetime
+from itertools import tee
 from os.path import abspath, dirname
 
+import requests
+import xlrd
+
+from nav_automation.constants import Constants
 
 
 def getSTBFNavDataFromFile(file):
@@ -16,8 +30,8 @@ def getSTBFNavDataFromFile(file):
 					  , total nav of the class
 					  , nav per unit)
 	"""
-	# FIXME: to be implemented
-	return []
+	return NavHandler().getSTBFNavDataFromFile(file)
+	# return []
 
 
 
@@ -38,8 +52,7 @@ def updateWebSite(mode, timeOut, fundName, navData):
 
 	return 0 when successful, throw exception otherwise.
 	"""
-	# FIXME: to be implemented
-	return 0
+	return NavHandler().updateWebSite(mode, timeOut, fundName, navData)
 
 
 
@@ -139,8 +152,6 @@ def getISINCode(fundName, className):
 	}
 	return f_map[(fundName, className)]
 
-
-
 """
 	returns the current directory
 
@@ -148,3 +159,320 @@ def getISINCode(fundName, className):
 """
 getCurrentDirectory = lambda : \
 	dirname(abspath(__file__))
+
+class NavHandler:
+
+	def __init__(self):
+		self.logger = logging.getLogger(__name__)
+
+	#-- run() is used by the main application to demo the functions
+	def run(self, file, mode, timeOut, fundName):
+		self.logger.info("Program initiated")
+		self.logger.debug("")  
+		self.logger.debug("|============================NEW Session============================|")
+		self.logger.debug("Reading file: '" + file + "'")
+		#-- loop the iterator and send request to website
+		all_nav = list(NavHandler().getSTBFNavDataFromFile(file))
+		self.logger.info("NAV info retrieved")
+		for i in range(len(all_nav)):
+			self.logger.debug("")
+			self.logger.debug("Prepare to upload NAV class number " + str(i + 1) + "...")
+			self.logger.debug("Data retrieved: " + str(all_nav[i]))
+			NavHandler().updateWebSite(mode, timeOut, fundName, all_nav[i])
+			self.logger.debug("")
+			self.logger.debug("Upload completed")
+			self.logger.debug("|============================END Session============================|")
+			self.logger.debug("")
+		
+	def getSTBFNavDataFromFile(self, file):
+		# self.logger.info('Running operation on file: ' + file)
+
+		def _create_iterator(input_list):
+			for item in input_list:
+				yield item
+		
+		# self.logger.info("Running operation on file: " + file)
+
+		#-- open the xls file
+		book = xlrd.open_workbook(file)
+		worksheet = book.sheet_by_name('Report')
+		number_of_rows = worksheet.nrows - 1
+		number_of_cols = worksheet.ncols - 1
+
+		#-- searching for data and sections ===========================================================
+		date_pos = []
+		unit_section_pos = []
+		number_of_classes = 0
+		class_pos_row = 0
+		class_pos_col = []
+		currency_pos_row = 0
+		number_of_units_pos_filtered = 0
+		number_of_units_pos_row = 0
+		nav_per_unit_pos_row = 0
+		total_nav_of_class_pos_row = 0
+		required_data_check = [0, 0, 0, 0, 0, 0, 0]
+		missing_data = ""
+		data_name = ["Date", "Unit section", "Currency", "No. of units (Actual from UT-Pro)", "NAV after Management Fee", "NAV per Unit (in 4 dec.)", "Classes"]
+		
+		#-- search for data and sections
+		for r in range(number_of_rows):
+			for c in range(number_of_cols):
+				#-- finding date
+				if ((not date_pos) and "Dealing Date" in str(worksheet.cell_value(r, c))):
+					date_pos.extend([r, c])
+					# self.logger.info("Date found! (at row: " + str(r) + " | col: " + str(c) + ")")
+					required_data_check[0] = 1
+				
+				#-- finding unit section
+				if ((not unit_section_pos) and str(worksheet.cell_value(r, c)) == "UNITS"):
+					unit_section_pos.extend([r, c])
+					class_pos_row = r + 1
+					# self.logger.info("Unit section found! (at row: " + str(r) + " | col: " + str(c) + ")")
+					required_data_check[1] = 1
+
+				#-- finding currency section
+				if ( (unit_section_pos) and (not currency_pos_row) and ("in class currency" in str(worksheet.cell_value(r, c))) ):
+					currency_pos_row = r
+					# self.logger.info("Currency found! (at row: " + str(r) + " | col: " + str(c) + ")")
+					required_data_check[2] = 1
+
+				#-- finding no. of units section
+				if ( number_of_units_pos_filtered and (unit_section_pos) and (not number_of_units_pos_row) and ("No of units (Actual from UT-Pro)" in str(worksheet.cell_value(r, c))) ):
+					number_of_units_pos_row = r
+					# self.logger.info("Number of units found! (at row: " + str(r) + " | col: " + str(c) + ")")
+					required_data_check[3] = 1
+
+				#-- ensuring that the no. of units section is the second instance of itself
+				if (("No of units (Actual from UT-Pro)" in str(worksheet.cell_value(r, c)))):
+					number_of_units_pos_filtered = 1
+
+				#-- finding total nav of the class
+				if ( (unit_section_pos) and (not total_nav_of_class_pos_row) and ("NAV after Management Fee" in str(worksheet.cell_value(r, c))) ):
+					total_nav_of_class_pos_row = r
+					# self.logger.info("Totla NAV of the class found! (at row: " + str(r) + " | col: " + str(c) + ")")
+					required_data_check[4] = 1
+
+				#-- finding nav per unit section
+				if ( (unit_section_pos) and (not nav_per_unit_pos_row) and ("NAV per Unit (in 4 dec.)" in str(worksheet.cell_value(r, c))) ):
+					nav_per_unit_pos_row = r
+					# self.logger.info("NAV per unit found! (at row: " + str(r) + " | col: " + str(c) + ")")
+					required_data_check[5] = 1
+
+		for c in range(number_of_cols):
+			if ("Class" in str(worksheet.cell_value(class_pos_row, c))):
+				number_of_classes += 1
+				class_pos_col.append(c)
+		if (number_of_classes <= 0):
+			error_message = "No class found, data retrieval failed. Please check if all classes' names are listed on the next row of 'UNITS'."
+			# self.logger.error(error_message)
+			raise ValueError(error_message)
+		else:
+			# self.logger.info(str(number_of_classes) + " class(es) found! (at row: " + str(class_pos_row) + " | col: " + str(class_pos_col) + ")")
+			required_data_check[6] = 1
+
+		if (0 in required_data_check):
+			for i in range(len(required_data_check)):
+				if (required_data_check[i]) == 0:
+					missing_data += data_name[i] + ", "
+			error_message = "Data retrieval failed, the following data/sections is(are) perhaps incorrect or missing: " + missing_data + "please double check the worksheet."
+			# self.logger.error(error_message)
+			raise ValueError(error_message)
+		else:
+			self.logger.debug("All data present, operation begins!")
+			# self.logger.info("All data present, operation begins!")
+		#-- ===============================================================================================
+
+		#-- gathering data ================================================================================
+
+		#-- retrieving dealing date
+		try:
+			dealing_date = str(worksheet.cell_value(date_pos[0], date_pos[1])).replace("Dealing Date: " ,"")
+			datetimeobject = datetime.strptime(dealing_date,'%d %B %Y')
+			dealing_date = datetimeobject.strftime('%Y-%m-%d')
+		except ValueError:
+			error_message = "Date format conversion failed, perhaps it is incorrect or missing? (expected format e.g.: '01 January 2021)')"
+			# self.logger.error(error_message)
+			raise ValueError(error_message)
+		
+		dealing_date_list = []
+		currency = []
+		class_name = []
+		number_of_units = []
+		total_nav_of_class =[]
+		nav_per_unit = []
+		data_tuple = []
+
+		for i in range(number_of_classes):
+			#-- appending date to each instance of class
+			dealing_date_list.append(dealing_date)
+
+			#-- retrieving class name
+			class_name.append(str(worksheet.cell_value(class_pos_row, class_pos_col[i])))
+
+			#-- retrieving currency
+			#-- dealing with the exceptional case placement of the currency column for the first class
+			if (i <= 0):
+				if (str(worksheet.cell_value(currency_pos_row, class_pos_col[i]-1)) != ''):
+					currency.append(str(worksheet.cell_value(currency_pos_row, class_pos_col[i]-1)))
+				else:
+					error_message = "Currency retrieval failed, please check if the currency field has already been filled in for every class."
+					# self.logger.error(error_message)
+					raise ValueError(error_message) 
+			else:
+				if (str(worksheet.cell_value(currency_pos_row, class_pos_col[i]-2)) != ''):
+					currency.append(str(worksheet.cell_value(currency_pos_row, class_pos_col[i]-2)))
+				else:
+					error_message = "Currency retrieval failed, please check if the currency field has already been filled in for every class."
+					# self.logger.error(error_message)
+					raise ValueError(error_message)         
+
+			#-- retrieving number of units
+			if (str(worksheet.cell_value(number_of_units_pos_row, class_pos_col[i])) != ''):
+				number_of_units.append(worksheet.cell_value(number_of_units_pos_row, class_pos_col[i]))
+			else:
+				error_message = "Number of units retrieval failed, please check if the second 'No of units (Actual from UT-Pro)' field has already been filled in for every class."
+				# self.logger.error(error_message)
+				raise ValueError(error_message)
+
+			#-- retrieving total nav of the class
+			if (str(worksheet.cell_value(total_nav_of_class_pos_row, class_pos_col[i])) != ''):
+				total_nav_of_class.append(worksheet.cell_value(total_nav_of_class_pos_row, class_pos_col[i]))
+			else:
+				error_message = "Total number of NAV of the class retrieval failed, please check if the second 'NAV after Management Fee' field has already been filled in for every class."
+				# self.logger.error(error_message)
+				raise ValueError(error_message)   
+
+			#-- retrieving nav per unit
+			if (str(worksheet.cell_value(nav_per_unit_pos_row, class_pos_col[i])) != ''):
+				nav_per_unit.append(worksheet.cell_value(nav_per_unit_pos_row, class_pos_col[i]))
+			else:
+				error_message = "NAV per unit retrieval failed, please check if the 'NAV per Unit (in 4 dec.)' field has already been filled in for every class."
+				# self.logger.error(error_message)
+				raise ValueError(error_message)
+
+			#-- creating tuple for each class
+			each_tuple = (dealing_date_list[i], class_name[i], currency[i], number_of_units[i], total_nav_of_class[i], nav_per_unit[i])
+			data_tuple.append(each_tuple)
+		#-- ===============================================================================================
+
+		ouput_data = _create_iterator(data_tuple)
+		# self.logger.info("Data retrieval successful! operation completed!")
+		# self.logger.info("Retrieved data:")
+		# self.logger.info(data_tuple)
+		return ouput_data
+
+	def updateWebSite(self, mode, timeOut, fundName, navData):
+		#-- selecting between production server and test server
+		if (mode == Constants.MODE_TEST):
+			url = Constants.API_TEST
+		elif (mode == Constants.MODE_PRODUCTION):
+			url = Constants.API_PRD
+		else:
+			error_message = "Unknown mode: " + str(mode)
+			self.logger.error(error_message)
+			raise ValueError(error_message)
+
+		#-- timeOut data type checking
+		if type(timeOut) != int:
+			error_message = "timeOut requires to be an intetger: " + timeOut
+			self.logger.error(error_message)
+			raise ValueError(error_message)			
+
+		#-- data type checking
+		productId = -1
+		try:
+			productId = self._getWebsiteProductID(fundName)
+		except KeyError:
+			error_message = "Failed to find productId from provided fundName. " + \
+							"Please create the product on website and add the mapping in function _getWebsiteProductID()."
+			self.logger.error(error_message)
+			raise KeyError(error_message)
+
+		# initializing tuples
+		payload_keys = ('date', 'className', 'currency', 'numOfUnits', 'totalNumOfNav', 'navPerUnit') 
+		payload_values = navData
+
+		payload = dict()
+		payload["auth_token"] = str("")
+		#-- using dictionary comprehension 
+		#-- convert tuples to dictionary 
+		if len(payload_keys) == len(payload_values): 
+			nav_payload = {payload_keys[i] : payload_values[i] for i, _ in enumerate(payload_values)}
+		#-- merge two dictionaries
+		payload = {**payload, **nav_payload}
+		payload["productId"] = productId
+		payload["created_at"] = math.floor(time.time())
+		#-- create description
+		payload["description"] = str(payload.get("className")) + \
+									str(payload.get("currency")) + \
+									"$ " + str(payload.get("navPerUnit"))
+		#-- generate auth_token
+		md5_str = str(payload.get("productId")) + \
+					Constants.API_TOKEN_STR + \
+					str(payload.get("created_at"))
+		payload["auth_token"] = hashlib.md5(md5_str.encode('utf-8')).hexdigest()
+
+		files=[]
+		headers = {}
+		resp = ""
+
+		#-- call the website API
+		self.logger.info("Calling API: " + \
+							url + \
+							", data: " + \
+							str(payload)
+							)
+		
+		try:
+			resp = requests.request("POST", url, headers=headers, data=payload, files=files, timeout=timeOut)
+			#-- check and raise error if http code is not 200 (good)
+			#-- skip checking 400 as want to print the params validation result
+			if (resp.status_code != 400):
+				resp.raise_for_status()
+			resp_content = json.loads(resp.text)
+			resp_result = resp_content['meta']["result"]
+			if (resp_result != "success"):
+				error_message = "API response 'failed'. Reason: " + resp_content['meta']["message"]
+				self.logger.error(error_message)
+				raise Exception(error_message)
+		except requests.exceptions.HTTPError as e:
+			#-- capture all non 200 response
+			error_message = "Error: " + str(e)
+			self.logger.error(error_message)
+			raise requests.exceptions.HTTPError(error_message)
+		except ValueError as e:
+			#-- capture if response cannot be parased as json
+			error_message = "The response from API is not in json format: " + resp.text
+			self.logger.error(error_message)
+			raise ValueError(error_message)
+		except Exception as e:
+			#-- capture if response cannot be parased as json
+			error_message = "System error when processing API. " + str(e)
+			self.logger.error(error_message)
+			raise Exception(error_message)
+
+		self.logger.debug("Response from API: " + resp_result)
+		
+		return 0
+
+	#-- get the productId by fundName. productId is the identifier of a fund created on the clamc site.
+	def _getWebsiteProductID(self, fundName):
+		"""
+		[String] fund name
+			=> [String] webite product ID
+		"""
+		f_map = \
+		{ 
+			'stbf': '4'
+		}
+		return f_map[fundName]
+
+	def createBloombergExcelFile(self, templateFile, outputDir, fundName, data):
+		return ''
+
+	def createThomsonExcelFile(self, templateFile, outputDir, fundName, data):
+		return ''
+		
+
+#-- calling the function
+# NavHandler().run("samples/sample PriceSTBF.xls")
