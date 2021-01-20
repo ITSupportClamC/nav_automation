@@ -10,9 +10,11 @@ import math
 import os
 import sys
 import time
+import openpyxl
 from datetime import datetime
 from itertools import tee
 from os.path import abspath, dirname
+from nav_automation.constants import Constants
 
 import requests
 import xlrd
@@ -76,8 +78,7 @@ def createBloombergExcelFile(templateFile, outputDir, fundName, data):
 	with the data populated. The template file should be kept
 	unchanged.
 	"""
-	# FIXME: add implementation
-	return ''
+	return NavHandler().createBloombergExcelFile(templateFile, outputDir, fundName, data)
 
 
 
@@ -101,8 +102,7 @@ def createThomsonExcelFile(templateFile, outputDir, fundName, data):
 	with the data populated. The template file should be kept
 	unchanged.
 	"""
-	# FIXME: add implementation
-	return ''
+	return NavHandler().createThomsonExcelFile(templateFile, outputDir, fundName, data)
 
 
 
@@ -383,7 +383,7 @@ class NavHandler:
 		try:
 			productId = self._getWebsiteProductID(fundName)
 		except KeyError:
-			error_message = "Failed to find productId from provided fundName. " + \
+			error_message = "Failed to find productId from the provided fundName. " + \
 							"Please create the product on website and add the mapping in function _getWebsiteProductID()."
 			self.logger.error(error_message)
 			raise KeyError(error_message)
@@ -468,11 +468,142 @@ class NavHandler:
 		return f_map[fundName]
 
 	def createBloombergExcelFile(self, templateFile, outputDir, fundName, data):
-		return ''
+		wb_obj = openpyxl.load_workbook(templateFile)
+		#-- assume the template is at the first active sheet
+		ws_obj = wb_obj.active
+		column_count = ws_obj.max_column
+		column_title_row = -1
+
+		#-- get the column title row
+		for row in range(1, column_count):
+			if (ws_obj.cell(row, 1).value == "DATE (MM/DD/YYYY)"):
+				column_title_row = row
+				break
+		#-- get the first content row
+		row += 1
+		self.logger.debug('first data row is ' + str(row))
+		#-- get the fund size actual
+		total_fund_size = 0
+		#-- navData format
+		keys = ['date', 'className', 'currency', 'numOfUnits', 'totalNumOfNav', 'navPerUnit']
+		data_l = []
+		#-- convert data from tuple to dict to make value retrieval below code clearer 
+		for datum in data:
+			data_l.append( dict(zip(keys, list(datum))) )
+		for data_d in data_l:
+			total_fund_size += float(data_d['totalNumOfNav'])
+		#-- convert format from yyyy-mm-dd to mm//dd/yyyy 
+		def format_date(old_format):
+			date_time_object = datetime.strptime(old_format,'%Y-%m-%d')
+			new_format = date_time_object.strftime('%m/%d/%Y')
+			return new_format
+		#-- get fund name
+														
+		#-- write the content
+		for data_d in data_l:
+			ws_obj.cell(row, Constants.BG_COL_DATE).value = format_date(data_d['date'])
+			try:
+				ws_obj.cell(row, Constants.BG_COL_BLOOMBERG_CODE).value = getBloombergCode(fundName, 
+																				data_d['className'],
+																				data_d['currency'])
+			except KeyError:
+				error_message = "Failed to find bloombergCode from the provided " + \
+								"fundName: " + fundName + ", " + \
+								"className: " + data_d['className'] + ", " + \
+								"currency: " + data_d['currency'] + \
+								". Please add the mapping in function getBloombergCode()."
+				self.logger.error(error_message)
+				raise KeyError(error_message)
+			#-- assume data_d['className'] have pattern of "Class X"
+			try:
+				ws_obj.cell(row, Constants.BG_COL_FUND_NAME).value = getBloombergFundname(fundName) + \
+															'-' + \
+															data_d['className'].replace('Class ', '') + \
+															' ' + \
+															data_d['currency']
+			except KeyError:
+				error_message = "Failed to find getBloombergFundname from the provided " + \
+								"fundName: " + fundName + ", " + \
+								". Please add the mapping in function getBloombergFundname()."
+				self.logger.error(error_message)
+				raise KeyError(error_message)
+			ws_obj.cell(row, Constants.BG_COL_CURRENCY).value = data_d['currency']
+			ws_obj.cell(row, Constants.BG_COL_NAV).value = data_d['navPerUnit']
+			ws_obj.cell(row, Constants.BG_COL_BID).value = ''
+			ws_obj.cell(row, Constants.BG_COL_OFFER).value = ''
+			ws_obj.cell(row, Constants.BG_COL_FUND_SIZE_ACTUAL).value = total_fund_size
+			ws_obj.cell(row, Constants.BG_COL_CLASS_ASSETS_ACTUAL).value = data_d['totalNumOfNav']
+			ws_obj.cell(row, Constants.BG_COL_SHARE_OUT_ACTUAL).value = data_d['numOfUnits']
+			ws_obj.cell(row, Constants.BG_COL_FIRM_ASSETS_UNDER_MANAGEMENT_ACTUAL).value = ''
+			#increment the row count
+			row += 1
+
+		#-- save the output to the target output directory
+		output_file_name = 'bloomberg_' + fundName + '_' + str(math.floor(time.time())) + ".xlsx"
+		output_file_fullpath = os.path.join(outputDir, output_file_name)
+		wb_obj.save(output_file_fullpath)
+		return output_file_fullpath
 
 	def createThomsonExcelFile(self, templateFile, outputDir, fundName, data):
-		return ''
-		
+		wb_obj = openpyxl.load_workbook(templateFile)
+		#-- assume the template is at the first active sheet
+		ws_obj = wb_obj.active
+		column_count = ws_obj.max_column
+		column_title_row = -1
 
-#-- calling the function
-# NavHandler().run("samples/sample PriceSTBF.xls")
+		#-- get the column title row
+		for row in range(1, column_count):
+			if (ws_obj.cell(row, 1).value == "ISIN Code"):
+				column_title_row = row
+				break
+		#-- get the first content row
+		row += 1
+		self.logger.debug('first data row is ' + str(row))
+		#-- get the fund size actual
+		total_fund_size = 0
+		#-- navData format
+		keys = ['date', 'className', 'currency', 'numOfUnits', 'totalNumOfNav', 'navPerUnit']
+		data_l = []
+		#-- convert data from tuple to dict to make value retrieval below code clearer 
+		for datum in data:
+			data_l.append( dict(zip(keys, list(datum))) )
+		for data_d in data_l:
+			total_fund_size += float(data_d['totalNumOfNav'])
+		#-- write the content
+		for data_d in data_l:
+			try:
+				ws_obj.cell(row, Constants.RE_COL_ISIN_CODE).value = getISINCode(fundName, 
+																				data_d['className'])
+			except KeyError:
+				error_message = "Failed to find ISIN from the provided " + \
+								"fundName: " + fundName + ", " + \
+								"className: " + data_d['className'] + ", " + \
+								". Please add the mapping in function getISINCode()."
+				self.logger.error(error_message)
+				raise KeyError(error_message)
+			try:
+				ws_obj.cell(row, Constants.RE_COL_NAME).value = getThomsonReutersFundname(fundName) + \
+															' ' + \
+															data_d['className'].replace('Class ', '') + \
+															' ' + \
+															data_d['currency']
+			except KeyError:
+				error_message = "Failed to find getThomsonReutersFundname from the provided " + \
+								"fundName: " + fundName + ", " + \
+								". Please add the mapping in function getThomsonReutersFundname()."
+				self.logger.error(error_message)
+				raise KeyError(error_message)
+			ws_obj.cell(row, Constants.RE_COL_CURRENCY).value = data_d['currency']
+			ws_obj.cell(row, Constants.RE_COL_NAV_PER_SHARE).value = data_d['navPerUnit']
+			ws_obj.cell(row, Constants.RE_COL_FUND_SIZE).value = total_fund_size
+			ws_obj.cell(row, Constants.RE_COL_CLASS_ASSETS).value = data_d['totalNumOfNav']
+			ws_obj.cell(row, Constants.RE_COL_SHARE_OUT).value = data_d['numOfUnits']
+			#increment the row count
+			row += 1
+
+		#-- save the output to the target output directory
+		output_file_name = 'reuters_' + fundName + '_' + str(math.floor(time.time())) + ".xlsx"
+		output_file_fullpath = os.path.join(outputDir, output_file_name)
+		wb_obj.save(output_file_fullpath)
+		return output_file_fullpath
+		

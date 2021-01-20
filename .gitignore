@@ -4,3 +4,8 @@ __pycache__/
 # ignore the log file
 logs/*
 
+# ignore .vscode setting
+.vscode/
+
+# ignore .vscode setting
+.xlsx
