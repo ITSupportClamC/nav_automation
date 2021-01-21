@@ -11,6 +11,7 @@ from steven_utils.mail import sendMailWithAttachment, sendMail
 from steven_utils.file import getFiles, getFilenameWithoutPath
 from toolz.functoolz import compose
 from functools import partial
+import shutil
 import logging
 logger = logging.getLogger(__name__)
 
@@ -223,6 +224,18 @@ def processStbfInputFiles(files):
 
 
 
+def moveFiles(outputDir, files):
+	"""
+	[String] output directory,
+	[List] files (with full path)
+
+	Side effect: move files to the output directory
+	"""
+	for fn in files:
+		shutil.move(fn, join(outputDir, getFilenameWithoutPath(fn)))
+
+
+
 def handleStbfReport():
 	"""
 	For period run purpose:
@@ -241,7 +254,7 @@ def handleStbfReport():
 
 	status, message = processStbfInputFiles(files)
 	sendNotificationEmail('Short Term Bond Fund', status, message)
-	# moveFiles(getStbfDataDirectory(), files)
+	moveFiles(getStbfProcessedDirectory(), files)
 
 
 
@@ -249,7 +262,6 @@ if __name__ == '__main__':
 	import logging.config
 	logging.config.fileConfig('logging_config.ini', disable_existing_loggers=False)
 
-	
 	import configparser
 	from os.path import join
 	config = configparser.ConfigParser()
