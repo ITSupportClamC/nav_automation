@@ -404,6 +404,7 @@ class NavHandler:
 		payload["created_at"] = math.floor(time.time())
 		#-- create description
 		payload["description"] = str(payload.get("className")) + \
+									"-" + \
 									str(payload.get("currency")) + \
 									"$ " + str(payload.get("navPerUnit"))
 		#-- generate auth_token

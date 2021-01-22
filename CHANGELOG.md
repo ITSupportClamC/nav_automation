@@ -12,3 +12,9 @@
 
 - Implement createBloombergExcelFile() and createThomsonExcelFile()
 - add testcase test_nav_handler.py
+
+## v1.2.0
+
+### Changed
+
+- Implement updateWebSite()
