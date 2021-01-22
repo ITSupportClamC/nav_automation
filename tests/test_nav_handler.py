@@ -4,6 +4,7 @@
 import unittest2
 import openpyxl
 import logging.config
+from nav_automation.constants import Constants
 from nav_automation.nav_handler import NavHandler, getCurrentDirectory
 from datetime import datetime
 from os.path import abspath, dirname, join
@@ -97,3 +98,14 @@ class TestNavHandler(unittest2.TestCase):
 		self.assertEqual(ws_obj.cell(first_data_row+1, 5).value, 48980171.47)
 		self.assertEqual(ws_obj.cell(first_data_row+1, 6).value, 44981729.87)
 		self.assertEqual(ws_obj.cell(first_data_row+1, 7).value, 4500000)
+	
+	def testUpdateWebSite(self):
+		#-- setup
+		file = join(getCurrentDirectory(), 'samples', 'sample PriceSTBF.xls')
+		mode = Constants.MODE_TEST
+		fundName = "stbf"
+		timeOut = 10
+		#-- loop the iterator and send request to website
+		all_nav = list(NavHandler().getSTBFNavDataFromFile(file))
+		for i in range(len(all_nav)):
+			NavHandler().updateWebSite(mode, timeOut, fundName, all_nav[i])
