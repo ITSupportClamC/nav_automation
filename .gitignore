@@ -7,8 +7,5 @@ logs/*
 # ignore .vscode setting
 .vscode/
 
-# ignore .vscode setting
 *.xlsx
-
-# ignore the configure file (because it's different between development and production)
-nav_automation.config
+*.config
