@@ -42,7 +42,12 @@ def updateWebSite(mode, timeOut, fundName, navData):
 	[String] mode (0 means production, 1 means test)
 	[String] timeout (in miliseconds)
 	[String] fund name,
-	[Tuple] nav Data (date, class, currency, nav)
+	[Tuple] ( date (yyyy-mm-dd)
+			, class
+			, currency
+			, number of unit
+			, total nav of the class
+			, nav per unit)
 
 	In production mode (0), update the website in production.
 	In test mode (1), update the test website.
@@ -404,6 +409,7 @@ class NavHandler:
 		payload["created_at"] = math.floor(time.time())
 		#-- create description
 		payload["description"] = str(payload.get("className")) + \
+									"-" + \
 									str(payload.get("currency")) + \
 									"$ " + str(payload.get("navPerUnit"))
 		#-- generate auth_token

@@ -6,7 +6,7 @@ class Constants:
 	MODE_PRODUCTION =  1
 	API_TOKEN_STR = "clamc-website-api"
 	API_TEST = "http://18.167.24.166/action/webservices/api/products/addnav"
-	API_PRD = "" 
+	API_PRD = "https://clamc.com.hk/action/webservices/api/products/addnav"
 
 	#-- bloomberg fund pricing worksheet column
 	BG_COL_DATE = 1

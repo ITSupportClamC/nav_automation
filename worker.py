@@ -5,6 +5,7 @@
 from nav_automation.nav_handler import getSTBFNavDataFromFile \
 									, createBloombergExcelFile \
 									, createThomsonExcelFile \
+									, updateWebSite \
 									, getCurrentDirectory
 from nav_automation.constants import Constants
 from steven_utils.mail import sendMailWithAttachment, sendMail
@@ -31,10 +32,11 @@ getDateFromFunddata = lambda data: data[0][0]
 
 
 
-def doBloombergUpdate(templateFile, outputDir, data):
+def doBloombergUpdate(templateFile, outputDir, fundName, data):
 	"""
 	[String] Bloomberg template file,
 	[String] output directory,
+	[String] fund name,
 	[List] fund data 
 		=> [Tuple] ([Int] result, [String] message)
 
@@ -43,7 +45,7 @@ def doBloombergUpdate(templateFile, outputDir, data):
 	logger.debug('doBloombergUpdate()')
 	try:
 		file = createBloombergExcelFile( templateFile, outputDir
-									   , 'stbf', data)
+									   , fundName, data)
 
 		sendMailWithAttachment( '', file
 							  , getSubject(getDateFromFunddata(data))
@@ -60,10 +62,11 @@ def doBloombergUpdate(templateFile, outputDir, data):
 
 
 
-def doThomsonUpdate(templateFile, outputDir, data):
+def doThomsonUpdate(templateFile, outputDir, fundName, data):
 	"""
 	[String] Thomson Reuters template file,
 	[String] output directory,
+	[String] fund name,
 	[List] fund data 
 		=> [Tuple] ([Int] result, [String] message)
 
@@ -72,7 +75,7 @@ def doThomsonUpdate(templateFile, outputDir, data):
 	logger.debug('doThomsonUpdate()')
 	try:
 		file = createThomsonExcelFile( templateFile, outputDir
-									 , 'stbf', data)
+									 , fundName, data)
 
 		sendMailWithAttachment( '', file
 							  , getSubject(getDateFromFunddata(data))
@@ -89,9 +92,33 @@ def doThomsonUpdate(templateFile, outputDir, data):
 
 
 
+def doWebsiteUpdate(mode, timeOut, fundName, data):
+	"""
+	[String] running mode (test or production)
+	[Int] time out (in miliseconds)
+	[String] fund name
+	[Iterable] data to upload
+		=> [Tuple] ([Int] result, [String] message)
+
+	This function does not throw any exceptions.
+	"""
+	logger.debug('doWebsiteUpdate()')
+	try:
+		for d in data:
+			updateWebSite(mode, timeOut, fundName, d)
+
+	except:
+		logger.exception('doWebsiteUpdate():')
+		return (Constants.STATUS_FAILURE, 'website update failed')
+
+
+	return (Constants.STATUS_SUCCESS, 'website update succesful')
+
+
+
 def sendNotificationEmail(fundName, status, message):
 	"""
-	[Int] status, [String] message
+	[String] fund name, [Int] status, [String] message
 
 	send email to notify the status. 
 	"""
@@ -176,6 +203,12 @@ def getStbfProcessedDirectory():
 
 
 
+def getWebsiteTimeout():
+	global config
+	return int(config['web']['timeOut'])
+
+
+
 def getStbfFilesFromDirectory(directory):
 	"""
 	[String] directory => [List] short term bond files under the dir
@@ -194,33 +227,59 @@ def getStbfFilesFromDirectory(directory):
 
 
 
-def processStbfInputFiles(files):
+def processStbfInputFiles(fundName, mode, files):
 	"""
+	[String] fund name
+	[String] mode (production or test)
 	[List] short term bond files (assume non-empty list)
 		=> [Tuple] (status, message)
+
+	This function should not throw exceptions.
+	"""
+
+	"""
+	[Iterable] ( date, class, currency, number of unit
+			   , total nav of the class, nav per unit)
+	=> 
+	[Iterable] (date, class, currency, nav per unit)
 	"""
 	if len(files) > 1:
-		logger.error('handleStbfReport(): too many input files')
+		logger.error('processStbfInputFiles(): too many input files')
 		return (Constants.STATUS_FAILURE, 'too many input files')
 
-	data = list(getSTBFNavDataFromFile(files[0]))
-	if len(data) == 0:
-		logger.error('no data from {0}'.format(file))
-		return (Constants.STATUS_FAILURE, 'failed to retrieve data')
+	try:
+		data = list(getSTBFNavDataFromFile(files[0]))
+		if len(data) == 0:
+			logger.error('processStbfInputFiles(): empty data set: {0}'.format(files[0]))
+			return (Constants.STATUS_FAILURE, 'empty data set')
+
+	except:
+		logger.exception('processStbfInputFiles()')
+		return (Constants.STATUS_FAILURE, 'failed to retrieve data from file')
+
 
 	status01, message01 = doBloombergUpdate( getBloombergTemplateFile(getStbfDataDirectory())
 									   	   , getStbfOutputDirectory()
+									   	   , fundName
 									   	   , data)
 	
 	status02, message02 = doThomsonUpdate( getThomsonTemplateFile(getStbfDataDirectory())
 										 , getStbfOutputDirectory()
+										 , fundName
 										 , data)
 
-	if (status01, status02) == (Constants.STATUS_SUCCESS, Constants.STATUS_SUCCESS):
-		return (Constants.STATUS_SUCCESS, message01 + '\n' + message02)
+	status03, message03 = doWebsiteUpdate( mode
+										 , getWebsiteTimeout()
+										 , fundName
+										 , data)
+
+
+	if (status01, status02, status03) == \
+		(Constants.STATUS_SUCCESS, Constants.STATUS_SUCCESS, Constants.STATUS_SUCCESS):
+		return (Constants.STATUS_SUCCESS, message01 + '\n' + message02 + '\n' + message03)
 
 	else:
-		return (Constants.STATUS_FAILURE, message01 + '\n' + message02)
+		return (Constants.STATUS_FAILURE, message01 + '\n' + message02 + '\n' + message03)
 
 
 
@@ -236,8 +295,11 @@ def moveFiles(outputDir, files):
 
 
 
-def handleStbfReport():
+def handleStbfReport(fundName, mode):
 	"""
+	[String] fund name
+	[String] mode (test or production)
+
 	For period run purpose:
 
 	1. read directory for input files;
@@ -252,7 +314,7 @@ def handleStbfReport():
 		logger.debug('handleStbfReport(): no input files')
 		return
 
-	status, message = processStbfInputFiles(files)
+	status, message = processStbfInputFiles(fundName, mode, files)
 	sendNotificationEmail('Short Term Bond Fund', status, message)
 	moveFiles(getStbfProcessedDirectory(), files)
 
@@ -267,5 +329,32 @@ if __name__ == '__main__':
 	config = configparser.ConfigParser()
 	config.read(join(getCurrentDirectory(), 'nav_automation.config'))
 
-	handleStbfReport()
+	"""
+	To run the program in test mode, which means test web site will be
+	updated, do (change stbf to other fund name if needed):
+
+	$ python stbf
+
+	To run the program in production mode:
+
+	$ python stbf --production
+	"""
+	import argparse
+	parser = argparse.ArgumentParser(description='NAV upload automation')
+	parser.add_argument( 'fund', metavar='fund', type=str
+					   , help='for which fund (stbf etc.)')
+	parser.add_argument( '--production', type=bool, nargs='?', const=True, default=False
+					   , help='run in production mode or test mode')
+	args = parser.parse_args()
+	mode = Constants.MODE_PRODUCTION if args.production else Constants.MODE_TEST
+	fundName = args.fund
+
+
+	import sys
+	if not fundName in ('stbf',):
+		logger.error('main(): invalid fundName: {0}'.format(fundName))
+		sys.exit(1)
+
+	if fundName == 'stbf':
+		handleStbfReport(fundName, mode)
 	
