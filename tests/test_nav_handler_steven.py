@@ -67,6 +67,22 @@ class TestNavHandlerSteven(unittest2.TestCase):
 
 
 
+	def testCreateThomsonExcelFile2(self):
+		file = join(getCurrentDirectory(), 'samples', 'PriceSTBF 2021-03-30.xls')
+		template = join( getCurrentDirectory(), 'samples'
+					   , 'Thomson Reuters fund pricing template.xlsx')
+		outputFile = createThomsonExcelFile( template, getCurrentDirectory()
+										   , 'stbf', getSTBFNavDataFromFile(file))
+		positions = compose(
+			lambda L: sorted(L, key=lambda p: p['Name'])
+		  , getRawPositionsFromLines
+		  , fileToLines
+		)(outputFile)
+
+		self.assertEqual(3, len(positions))
+
+
+
 	def testCreateBloombergExcelFile(self):
 		file = join(getCurrentDirectory(), 'samples', 'PriceSTBF 2021-01-19.xls')
 		template = join( getCurrentDirectory(), 'samples'
@@ -83,6 +99,23 @@ class TestNavHandlerSteven(unittest2.TestCase):
 		self.assertEqual(2, len(positions))
 		self.verififyBloombergPosition1(positions[0])
 		self.verififyBloombergPosition2(positions[1])
+
+
+
+	def testCreateBloombergExcelFile2(self):
+		file = join(getCurrentDirectory(), 'samples', 'PriceSTBF 2021-03-30.xls')
+		template = join( getCurrentDirectory(), 'samples'
+					   , 'Bloomberg fund pricing template.xlsx')
+		outputFile = createBloombergExcelFile( template, getCurrentDirectory()
+										   	 , 'stbf', getSTBFNavDataFromFile(file))
+		positions = compose(
+			lambda L: sorted(L, key=lambda p: p['FUND NAME'])
+		  , getRawPositionsFromLines
+		  , partial(skipN, 7)
+		  , fileToLines
+		)(outputFile)
+
+		self.assertEqual(3, len(positions))
 
 
 

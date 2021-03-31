@@ -121,6 +121,8 @@ def getBloombergCode(fundName, className, currency):
 	f_map = \
 	{ ('stbf', 'Class B', 'USD'): 'CLSTFBU HK Equity'
 	, ('stbf', 'Class I', 'USD'): 'CLSTFIU HK Equity'
+	, ('stbf', 'Class A', 'USD'): 'CLSTFAU HK Equity'
+	, ('stbf', 'Class A', 'HKD'): 'CLSTFAH HK Equity'
 	}
 	return f_map[(fundName, className, currency)]
 
@@ -145,17 +147,22 @@ def getThomsonReutersFundname(fundName):
 
 
 
-def getISINCode(fundName, className):
+def getISINCode(fundName, className, currency='USD'):
 	"""
 	[String] fund name,
-	[String] class name
+	[String] class name,
+	[String] currency
 		=> [String] ISIN code
 	"""
 	f_map = \
-	{ ('stbf', 'Class B'): 'HK0000664455'
-	, ('stbf', 'Class I'): 'HK0000664489'
+	{ ('stbf', 'Class B', 'USD'): 'HK0000664455'
+	, ('stbf', 'Class I', 'USD'): 'HK0000664489'
+	, ('stbf', 'Class A', 'USD'): 'HK0000664422'
+	, ('stbf', 'Class A', 'HKD'): 'HK0000664430'
 	}
-	return f_map[(fundName, className)]
+	return f_map[(fundName, className, currency)]
+
+
 
 """
 	returns the current directory
