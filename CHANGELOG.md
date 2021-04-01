@@ -18,3 +18,9 @@
 ### Changed
 
 - Implement updateWebSite()
+
+## v1.3.0
+
+### Changed
+
+- Modify function getISINCode() to include parameter currency and update the funciton createThomsonExcelFile() so that Fund will not be always assuming having currency USD.

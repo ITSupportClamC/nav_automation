@@ -586,7 +586,8 @@ class NavHandler:
 		for data_d in data_l:
 			try:
 				ws_obj.cell(row, Constants.RE_COL_ISIN_CODE).value = getISINCode(fundName, 
-																				data_d['className'])
+																				data_d['className'],
+																				data_d['currency'])
 			except KeyError:
 				error_message = "Failed to find ISIN from the provided " + \
 								"fundName: " + fundName + ", " + \
