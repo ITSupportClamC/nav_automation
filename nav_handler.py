@@ -122,7 +122,9 @@ def getBloombergCode(fundName, className, currency):
 	{ ('stbf', 'Class B', 'USD'): 'CLSTFBU HK Equity'
 	, ('stbf', 'Class I', 'USD'): 'CLSTFIU HK Equity'
 	, ('stbf', 'Class A', 'USD'): 'CLSTFAU HK Equity'
+	, ('stbf', 'Class A (USD)', 'USD'): 'CLSTFAU HK Equity'
 	, ('stbf', 'Class A', 'HKD'): 'CLSTFAH HK Equity'
+	, ('stbf', 'Class A (HKD)', 'HKD'): 'CLSTFAH HK Equity'
 	}
 	return f_map[(fundName, className, currency)]
 
@@ -158,7 +160,9 @@ def getISINCode(fundName, className, currency='USD'):
 	{ ('stbf', 'Class B', 'USD'): 'HK0000664455'
 	, ('stbf', 'Class I', 'USD'): 'HK0000664489'
 	, ('stbf', 'Class A', 'USD'): 'HK0000664422'
+	, ('stbf', 'Class A (USD)', 'USD'): 'HK0000664422'
 	, ('stbf', 'Class A', 'HKD'): 'HK0000664430'
+	, ('stbf', 'Class A (HKD)', 'HKD'): 'HK0000664430'
 	}
 	return f_map[(fundName, className, currency)]
 

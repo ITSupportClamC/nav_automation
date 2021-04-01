@@ -49,6 +49,14 @@ class TestNavHandlerSteven(unittest2.TestCase):
 
 
 
+	def testGetSTBFNavDataFromFile3(self):
+		file = join(getCurrentDirectory(), 'samples', 'PriceSTBF 2021-03-31.xls')
+		data = getSTBFNavDataFromFile(file)
+		sortedData = sorted(data, key=lambda t: t[1])
+		self.assertEqual(4, len(sortedData))
+
+
+
 	def testCreateThomsonExcelFile(self):
 		file = join(getCurrentDirectory(), 'samples', 'PriceSTBF 2021-01-19.xls')
 		template = join( getCurrentDirectory(), 'samples'
