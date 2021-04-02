@@ -164,6 +164,52 @@ class TestNavHandler(unittest2.TestCase):
 		self.assertEqual(ws_obj.cell(first_data_row+1, 6).value, 44981729.87)
 		self.assertEqual(ws_obj.cell(first_data_row+1, 7).value, 4500000)
 
+	def testCreateThomsonExcelFileWith4FundColumn(self):
+		file = join(getCurrentDirectory(), 'tests', 'testdata', 'PriceSTBF 2021-03-31editable.xls')
+		data = self.NavHandler.getSTBFNavDataFromFile(file)
+		templateFile = join(getCurrentDirectory(), 'samples', 'Thomson Reuters fund pricing template.xlsx')
+		outputDir = ""
+		fundName = 'stbf'
+		output_file_fullpath = self.NavHandler.createThomsonExcelFile(templateFile, outputDir, fundName, data)
+		wb_obj = openpyxl.load_workbook(output_file_fullpath) 
+		ws_obj=wb_obj.active
+		data_row = 2
+		#-- verify first row
+		self.assertEqual(ws_obj.cell(data_row, 1).value, 'HK0000664455')
+		self.assertEqual(ws_obj.cell(data_row, 2).value, 'China Life Franklin Global-Short Term Bond B USD')
+		self.assertEqual(ws_obj.cell(data_row, 3).value, 'USD')
+		self.assertEqual(ws_obj.cell(data_row, 4).value, 10.0338)
+		self.assertEqual(ws_obj.cell(data_row, 5).value, 249876982.57)
+		self.assertEqual(ws_obj.cell(data_row, 6).value, 4013547.21)
+		self.assertEqual(ws_obj.cell(data_row, 7).value, 400000)
+
+		data_row = data_row + 1
+		self.assertEqual(ws_obj.cell(data_row, 1).value, 'HK0000664489')
+		self.assertEqual(ws_obj.cell(data_row, 2).value, 'China Life Franklin Global-Short Term Bond I USD')
+		self.assertEqual(ws_obj.cell(data_row, 3).value, 'USD')
+		self.assertEqual(ws_obj.cell(data_row, 4).value, 10.0262)
+		self.assertEqual(ws_obj.cell(data_row, 5).value, 249876982.57)
+		self.assertEqual(ws_obj.cell(data_row, 6).value, 245860749.83)
+		self.assertEqual(ws_obj.cell(data_row, 7).value, 24521823.7879)
+		
+		data_row = data_row + 1
+		self.assertEqual(ws_obj.cell(data_row, 1).value, 'HK0000664422')
+		self.assertEqual(ws_obj.cell(data_row, 2).value, 'China Life Franklin Global-Short Term Bond A (USD) USD')
+		self.assertEqual(ws_obj.cell(data_row, 3).value, 'USD')
+		self.assertEqual(ws_obj.cell(data_row, 4).value, 10.0040)
+		self.assertEqual(ws_obj.cell(data_row, 5).value, 249876982.57)
+		self.assertEqual(ws_obj.cell(data_row, 6).value, 100.04)
+		self.assertEqual(ws_obj.cell(data_row, 7).value, 10)
+
+		data_row = data_row + 1
+		self.assertEqual(ws_obj.cell(data_row, 1).value, 'HK0000664430')
+		self.assertEqual(ws_obj.cell(data_row, 2).value, 'China Life Franklin Global-Short Term Bond A (HKD) HKD')
+		self.assertEqual(ws_obj.cell(data_row, 3).value, 'HKD')
+		self.assertEqual(ws_obj.cell(data_row, 4).value, 10.0001)
+		self.assertEqual(ws_obj.cell(data_row, 5).value, 249876982.57)
+		self.assertEqual(ws_obj.cell(data_row, 6).value, 2585.49)
+		self.assertEqual(ws_obj.cell(data_row, 7).value, 2010)
+
 	# def testUpdateWebSite(self):
 	# 	#-- setup
 	# 	file = join(getCurrentDirectory(), 'samples', 'sample PriceSTBF.xls')
