@@ -335,19 +335,30 @@ class NavHandler:
 					# self.logger.error(error_message)
 					raise ValueError(error_message) 
 			else:
-				if (str(worksheet.cell_value(currency_pos_row, class_pos_col[i]-2)) != ''):
-					currency.append(str(worksheet.cell_value(currency_pos_row, class_pos_col[i]-2)))
-				else:
+				#-- find the currency by subtracting the column with offset 0, 1, 2, ...
+				col_offset = 1
+				has_currency_found = False
+				#-- if col_offset 100 still have no currency found then just break the loop
+				while col_offset < 100:
+					#-- break the loop if the offset is > the column index
+					if class_pos_col[i] < col_offset:
+						error_message = "Currency retrieval failed, please check if the currency field has already been filled in for every class."
+						raise ValueError(error_message)
+					#-- break the loop if the currency column is found
+					if (str(worksheet.cell_value(currency_pos_row, class_pos_col[i] - col_offset)) != ''):
+						currency.append(str(worksheet.cell_value(currency_pos_row, class_pos_col[i] - col_offset)))
+						has_currency_found = True
+						break
+					col_offset = col_offset + 1
+				if not has_currency_found:
 					error_message = "Currency retrieval failed, please check if the currency field has already been filled in for every class."
-					# self.logger.error(error_message)
-					raise ValueError(error_message)         
+					raise ValueError(error_message)
 
 			#-- retrieving number of units
 			if (str(worksheet.cell_value(number_of_units_pos_row, class_pos_col[i])) != ''):
 				number_of_units.append(worksheet.cell_value(number_of_units_pos_row, class_pos_col[i]))
 			else:
 				error_message = "Number of units retrieval failed, please check if the second 'No of units (Actual from UT-Pro)' field has already been filled in for every class."
-				# self.logger.error(error_message)
 				raise ValueError(error_message)
 
 			#-- retrieving total nav of the class
@@ -355,7 +366,6 @@ class NavHandler:
 				total_nav_of_class.append(worksheet.cell_value(total_nav_of_class_pos_row, class_pos_col[i]))
 			else:
 				error_message = "Total number of NAV of the class retrieval failed, please check if the second 'NAV after Management Fee' field has already been filled in for every class."
-				# self.logger.error(error_message)
 				raise ValueError(error_message)   
 
 			#-- retrieving nav per unit
@@ -363,7 +373,6 @@ class NavHandler:
 				nav_per_unit.append(worksheet.cell_value(nav_per_unit_pos_row, class_pos_col[i]))
 			else:
 				error_message = "NAV per unit retrieval failed, please check if the 'NAV per Unit (in 4 dec.)' field has already been filled in for every class."
-				# self.logger.error(error_message)
 				raise ValueError(error_message)
 
 			#-- creating tuple for each class
